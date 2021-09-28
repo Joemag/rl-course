@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 
 def policy(state, theta):
     """ TODO: return probabilities for actions under softmax action selection """
-    return [0.5, 0.5]  # both actions with 0.5 probability => random
+    e0 = np.exp(np.dot(theta[:,0], state)) 
+    e1 = np.exp(np.dot(theta[:,1], state))
+    return [e0/(e0+e1), e1/(e0+e1)]
 
 
 def generate_episode(env, theta, display=False):
@@ -31,7 +33,12 @@ def generate_episode(env, theta, display=False):
 
 
 def REINFORCE(env):
+    gamma = 0.99
+    alpha = 0.02
     theta = np.random.rand(4, 2)  # policy parameters
+
+    last_hundred_episode_lengths = []
+    episode_length_means = []
 
     for e in range(10000):
         if e % 300 == 0:
@@ -41,16 +48,69 @@ def REINFORCE(env):
 
         print("episode: " + str(e) + " length: " + str(len(states)))
         # TODO: keep track of previous 100 episode lengths and compute mean
+        last_hundred_episode_lengths.append(len(states))
+        if len(last_hundred_episode_lengths) > 100:
+            last_hundred_episode_lengths = last_hundred_episode_lengths[1:]
+        length_mean = np.mean(last_hundred_episode_lengths)
+        episode_length_means.append(length_mean)
+        #if length_mean == 500: return episode_length_means
+        print("Mean: "+ str(length_mean))
 
         # TODO: implement the reinforce algorithm to improve the policy weights
+        T = len(states)
+        for t in range(T):
+            Gt = np.sum([gamma**(k-t) * rewards[k] for k in range(t, T)])
+            grad_log = np.multiply((1 - policy(states[t], theta)[actions[t]]), states[t])
+            theta[:,actions[t]] = theta[:,actions[t]] + alpha*(gamma**t) * Gt * grad_log
+    return episode_length_means
 
+def REINFORCE_with_baseline(env):
+    gamma = 0.99
+    alpha_theta = 0.02
+    alpha_w = 0.02
+    theta = np.random.rand(4, 2)  # policy parameters
+    weights = np.zeros(4)
 
+    last_hundred_episode_lengths = []
+    episode_length_means = []
 
+    for e in range(10000):
+        if e % 300 == 0:
+            states, rewards, actions = generate_episode(env, theta, True)  # display the policy every 300 episodes
+        else:
+            states, rewards, actions = generate_episode(env, theta, False)
+
+        print("episode: " + str(e) + " length: " + str(len(states)))
+        # TODO: keep track of previous 100 episode lengths and compute mean
+        last_hundred_episode_lengths.append(len(states))
+        if len(last_hundred_episode_lengths) > 100:
+            last_hundred_episode_lengths = last_hundred_episode_lengths[1:]
+        length_mean = np.mean(last_hundred_episode_lengths)
+        episode_length_means.append(length_mean)
+        #if length_mean == 500: return episode_length_means
+        print("Mean: "+ str(length_mean))
+
+        # TODO: implement the reinforce algorithm to improve the policy weights
+        T = len(states)
+        for t in range(T):
+            Gt = np.sum([gamma**(k-t) * rewards[k] for k in range(t, T)])
+            delta = Gt - np.dot(weights, states[t])
+            weights = weights + alpha_w * (gamma**t) * delta * states[t]
+            grad_log = np.multiply((1 - policy(states[t], theta)[actions[t]]), states[t])
+            theta[:,actions[t]] = theta[:,actions[t]] + alpha_theta*(gamma**t) * delta * grad_log
+    return episode_length_means
 
 
 def main():
     env = gym.make('CartPole-v1')
-    REINFORCE(env)
+    reinforce_lengths = REINFORCE(env)
+    reinforce_baseline_lengths = REINFORCE_with_baseline(env)
+    plt.plot(range(len(reinforce_lengths)),reinforce_lengths, label="REINFORCE")
+    plt.plot(range(len(reinforce_baseline_lengths)),reinforce_baseline_lengths, label="REINFORCE with baseline")
+    plt.xlabel("episode")
+    plt.ylabel("episode length")
+    plt.legend()
+    plt.show()
     env.close()
 
 

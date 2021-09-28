@@ -1,4 +1,6 @@
 import tensorflow as tf
+from collections import deque
+import random
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +31,14 @@ class DQN:
         self.discount = 0.99
         self.epsilon = 0.1
 
+        # additions
+        self.batch_size = 1
+        self.replay_buffer_capacity = 100
+
+        self.replay_buffer = deque([],maxlen=self.replay_buffer_capacity)
+        self.target_model = build_NN(self.num_states, self.num_actions)
+        self.target_model.set_weights(self.model.get_weights())
+
     def Q_function(self, states, actions):
         """ This is the q-function approximated by the model, given state and action it outputs the value """
         return tf.reduce_sum(self.model(states) * tf.one_hot(actions, self.num_actions), axis=-1)
@@ -56,6 +66,31 @@ class DQN:
             value_target = reward + self.discount * np.max(self.model(np.atleast_2d(next_state)), axis=-1)
             # compute the loss and apply the gradients:
             self.gradient_step(np.atleast_2d(state), action, value_target)
+            state = next_state
+            episode_reward += reward
+        return episode_reward
+    
+    def train_episode_dqn(self):
+        """ Runs one episode  """
+        state = self.env.reset()
+        done = False
+        episode_reward = 0.
+        self.target_model.set_weights(self.model.get_weights())
+        while not done:
+            action = self.eps_greedy(state, self.epsilon)
+            next_state, reward, done, _ = self.env.step(action)
+            if done:
+                reward -= 100  # we apply an additional negative reward when done
+
+            self.replay_buffer.append((state,action,reward,next_state))
+
+            for k in range(self.batch_size):
+                (state_sample,action_sample,reward_sample,next_state_sample) = random.choice(self.replay_buffer)
+                # compute the target value:
+                value_target = reward_sample + self.discount * np.max(self.target_model(np.atleast_2d(next_state_sample)), axis=-1)
+                # compute the loss and apply the gradients:
+                self.gradient_step(np.atleast_2d(state_sample), action_sample, value_target)
+
             state = next_state
             episode_reward += reward
         return episode_reward

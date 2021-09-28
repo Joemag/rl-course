@@ -29,23 +29,56 @@ def greedy(bandit, timesteps):
 
     # TODO: init variables (rewards, n_plays, Q) by playing each arm once
 
+    for i in possible_arms:
+        Q[i] = bandit.play_arm(i)
+        n_plays[i] = 1
+        rewards[i] = Q[i]
+
+
     # Main loop
     while bandit.total_played < timesteps:
         # This example shows how to play a random arm:
-        a = random.choice(possible_arms)
-        reward_for_a = bandit.play_arm(a)
+        #a = random.choice(possible_arms)
+        #reward_for_a = bandit.play_arm(a)
         # TODO: instead do greedy action selection
+        a = np.argmax(Q)
+        reward = bandit.play_arm(a)
         # TODO: update the variables (rewards, n_plays, Q) for the selected arm
+        n_plays[a] += 1
+        rewards[a] += reward
+        Q[a] = rewards[a]/n_plays[a]
 
 
 def epsilon_greedy(bandit, timesteps):
-    # TODO: epsilon greedy action selection (you can copy your code for greedy as a starting point)
+    rewards = np.zeros(bandit.n_arms)
+    n_plays = np.zeros(bandit.n_arms)
+    Q = np.zeros(bandit.n_arms)
+    possible_arms = range(bandit.n_arms)
+    epsilon = 0.1
+
+
+    for i in possible_arms:
+        Q[i] = bandit.play_arm(i)
+        n_plays[i] = 1
+        rewards[i] = Q[i]
+
+    # Main loop
     while bandit.total_played < timesteps:
-        reward_for_a = bandit.play_arm(0)  # Just play arm 0 as placeholder
+
+        if np.random.binomial(1, epsilon) == 0:
+            a = np.argmax(Q) # greedy
+        else:
+            a = random.choice(possible_arms) # random
+
+
+        reward = bandit.play_arm(a)
+        n_plays[a] += 1
+        rewards[a] += reward
+        Q[a] = rewards[a]/n_plays[a]
 
 
 def main():
-    n_episodes = 500  # TODO: set to 10000 to decrease noise in plot
+    n_episodes = 10000  # TODO: set to 10000 to decrease noise in plot
     n_timesteps = 1000
     rewards_greedy = np.zeros(n_timesteps)
     rewards_egreedy = np.zeros(n_timesteps)
@@ -71,7 +104,7 @@ def main():
     plt.legend()
     plt.xlabel("Timesteps")
     plt.ylabel("Reward")
-    plt.savefig('bandit_strategies.eps')
+    plt.savefig('bandit_strategies.pdf')
     plt.show()
 
 

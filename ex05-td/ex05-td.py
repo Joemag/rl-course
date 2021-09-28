@@ -90,22 +90,47 @@ def sarsa(env, alpha=0.1, gamma=0.9, epsilon=0.1, num_ep=int(1e4)):
     Q = np.zeros((env.observation_space.n,  env.action_space.n))
 
     # TODO: implement the sarsa algorithm
+    def choose_epsilon_greedy_action(state):
+        if np.random.random() < epsilon:
+            return np.random.randint(env.action_space.n)
+        else:
+            return np.random.choice(np.flatnonzero(Q[state,:] == np.max(Q[state,:])))
 
     # This is some starting point performing random walks in the environment:
     for i in range(num_ep):
         s = env.reset()
         done = False
+        a = choose_epsilon_greedy_action(s)
         while not done:
-            a = np.random.randint(env.action_space.n)
             s_, r, done, _ = env.step(a)
+            a_ = choose_epsilon_greedy_action(s_)
+            Q[s,a] = Q[s,a] + alpha*(r + (gamma * Q[s_,a_]) - Q[s,a])
+            s=s_
+            a=a_
     return Q
 
 
 def qlearning(env, alpha=0.1, gamma=0.9, epsilon=0.1, num_ep=int(1e4)):
     Q = np.zeros((env.observation_space.n,  env.action_space.n))
-    # TODO: implement the qlearning algorithm
-    return Q
 
+    # TODO: implement the qlearning algorithm
+    def choose_greedy_action(state):
+        return np.argmax(Q[state,:])
+    def choose_epsilon_greedy_action(state):
+        if np.random.random() < epsilon:
+            return np.random.randint(env.action_space.n)
+        else:
+            return np.random.choice(np.flatnonzero(Q[state,:] == np.max(Q[state,:])))
+    # This is some starting point performing random walks in the environment:
+    for i in range(num_ep):
+        s = env.reset()
+        done = False
+        while not done:
+            a = choose_epsilon_greedy_action(s)
+            s_, r, done, _ = env.step(a)
+            Q[s,a] = Q[s,a] + alpha*(r + (gamma * Q[s_,choose_greedy_action(s_)]) - Q[s,a])
+            s=s_
+    return Q
 
 env=gym.make('FrozenLake-v0')
 #env=gym.make('FrozenLake-v0', is_slippery=False)

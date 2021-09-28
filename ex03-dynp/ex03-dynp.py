@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import math as math
 
 # Init environment
 env = gym.make("FrozenLake-v0")
@@ -22,7 +23,28 @@ def value_iteration():
     gamma = 0.8
     # TODO: implement the value iteration algorithm and return the policy
     # Hint: env.P[state][action] gives you tuples (p, n_state, r, is_terminal), which tell you the probability p that you end up in the next state n_state and receive reward r
+    nsteps = 0
+    while True:
+        delta = 0
+        for s in range(n_states):
+            v = V_states[s]
+            V_states[s] = max([math.fsum([p * (r + gamma * V_states[n_state]) for p, n_state, r, is_terminal in env.P[s][a]]) for a in range(n_actions)])
+            delta = max(delta, abs(v - V_states[s]))
+        nsteps += 1
+        if delta < theta:
+            break
+    print("Number of steps: {}".format(nsteps))
+    return V_states
 
+def make_policy(value):
+    policy = np.zeros(n_states)  # init values as zero
+    theta = 1e-8
+    gamma = 0.8
+
+    for s in range(n_states):
+        policy[s] = np.argmax([math.fsum([p * (r + gamma * value[n_state]) for p, n_state, r, is_terminal in env.P[s][a]]) for a in range(n_actions)])
+
+    return policy
 
 def main():
     # print the environment
@@ -31,7 +53,10 @@ def main():
     print("")
 
     # run the value iteration
-    policy = value_iteration()
+    value = value_iteration()
+    print("Computed value:")
+    print(value)
+    policy = make_policy(value)
     print("Computed policy:")
     print(policy)
 
